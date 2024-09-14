@@ -13,15 +13,12 @@ void main(){
 
 #shader fragment
 #version 330 core
-in vec2 TexCoord;
 
 out vec4 FragColor;
 
+uniform vec4 u_Color;
+
 void main(){
-    if(TexCoord.x <= 0.5){
-        FragColor = vec4(1.0,0,0,1.0);
-    }else{
-        FragColor = vec4(0,0,1.0,1.0);        
-    }
+        FragColor = u_Color;
 }
 

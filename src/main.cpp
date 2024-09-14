@@ -5,6 +5,7 @@
 #include <string>
 #include <sstream>
 #include <utility>
+#include <cassert>
 
 enum class ShaderType
 {
@@ -122,6 +123,8 @@ int main(void)
     // Make the window's context current
     glfwMakeContextCurrent(window);
 
+    glfwSwapInterval(1);
+
     // Initialize GLEW
     GLenum err = glewInit(); // glew needs valid glfw context that's why called after glfwMakeContextCurrent
 
@@ -226,6 +229,10 @@ int main(void)
     unsigned int shader_program = CreateShaderProgram(shaders.first, shaders.second);
     glUseProgram(shader_program);
 
+    int res = glGetUniformLocation(shader_program, "u_Color");
+    assert(res != -1);
+    float r = 0.0f;
+    float increament = 0.02f;
     while (!glfwWindowShouldClose(window))
     {
         glClear(GL_COLOR_BUFFER_BIT);
@@ -233,7 +240,19 @@ int main(void)
         // glDrawArrays(GL_TRIANGLES, 0, 3); // our shader will be executed on this draw call
         // if you don't do this call no shader will be called
         // if we dont write glUseProgram(our_program), it will use default one provided by GPU.
+        glUniform4f(res, r, 0.0f, 0.8f, 1.0f);
+
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+
+        r = r + increament;
+        if (r > 1.0f)
+        {
+            increament = -0.02f;
+        }
+        else if (r <= 0.0f)
+        {
+            increament = 0.02f;
+        }
         glfwSwapBuffers(window);
 
         glfwPollEvents();
