@@ -1,6 +1,52 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include <fstream>
+#include <string>
+#include <sstream>
+#include <utility>
+
+enum class ShaderType
+{
+    NONE = -1,
+    VERTEX = 0,
+    FRAGMENT = 1
+};
+
+void GLAPIENTRY debugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
+{
+    std::cout << "[OpenGL error] (" << type << ")" << message << std::endl;
+}
+
+static std::pair<std::string, std::string> ParseShader(const std::string &file_path)
+{
+    std::ifstream stream(file_path);
+    std::string line;
+    std::stringstream ss[2];
+    ShaderType type = ShaderType::NONE;
+    while (getline(stream, line))
+    {
+        if (line.find("#shader") != std::string::npos)
+        {
+            if (line.find("vertex") != std::string::npos)
+            {
+                type = ShaderType::VERTEX;
+            }
+            else if (line.find("fragment") != std::string::npos)
+            {
+                type = ShaderType::FRAGMENT;
+            }
+        }
+        else
+        {
+            if (type == ShaderType::NONE)
+                continue;
+            ss[(int)type] << line << '\n';
+        }
+    }
+
+    return {ss[0].str(), ss[1].str()};
+}
 
 static int CompileShader(unsigned int type, const std::string &source)
 {
@@ -43,7 +89,7 @@ static unsigned int CreateShaderProgram(const std::string &vertexShader, const s
         glGetProgramInfoLog(program, 1024, NULL, log);
         std::cout << "Unable to link program  " << log << std::endl;
     }
-    glAttachShader(program, vs);
+    glDetachShader(program, vs);
     glDetachShader(program, fs);
     glDeleteShader(vs);
     glDeleteShader(fs);
@@ -61,6 +107,9 @@ int main(void)
         return -1;
     }
 
+    // set glfw to enable debug messages
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
+
     // Create a GLFW window
     GLFWwindow *window = glfwCreateWindow(800, 600, "OpenGL Window", NULL, NULL);
     if (!window)
@@ -74,7 +123,9 @@ int main(void)
     glfwMakeContextCurrent(window);
 
     // Initialize GLEW
-    GLenum err = glewInit();
+    GLenum err = glewInit(); // glew needs valid glfw context that's why called after glfwMakeContextCurrent
+
+    glDebugMessageCallback(debugCallback, nullptr); // glDebugMessageCallback needs valid glfw context that's why called after glfwMakeContextCurrent
 
     if (err != GLEW_OK)
     {
@@ -89,21 +140,71 @@ int main(void)
 
     // Your OpenGL code goes here...
     std::cout << glGetString(GL_VERSION) << std::endl;
-    // Terminate GLFW
-    float postions[6] = {
+    // vertex buffer first two co-ordinates are position and
+    /*
+    each vertex has 2 attributes ( 4 floats )
+    each attribute has 2 float
+    1st attribute is position
+    2nd attribute is texture co-ordinate for telling the fragment shader where to use which color
+     */
+    // float postions[] = {
+    //     -0.5f,
+    //     -0.5f,
+    //     1.0f,
+    //     1.0f,
+
+    //     0.5f,
+    //     -0.5f,
+    //     1.0f,
+    //     0.0f,
+
+    //     0.5f,
+    //     0.5f,
+    //     0.0f,
+    //     0.0f,
+
+    //     -0.5f,
+    //     0.5f,
+    //     0.0f,
+    //     1.0f,
+
+    // };
+
+    float postions[] = {
         -0.5f,
         -0.5f,
-        0.0f,
+
+        0.5f,
+        -0.5f,
+
         0.5f,
         0.5f,
-        -0.5f};
+
+        -0.5f,
+        0.5f,
+
+    };
+
+    // index buffer
+    unsigned int indices[] = {
+        0,
+        1,
+        2,
+        2,
+        3,
+        0
+
+    };
+
     unsigned int buffer;
     glGenBuffers(1, &buffer);
 
     glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(float), postions, GL_STREAM_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 2 * 4 * sizeof(float), postions, GL_STREAM_DRAW);
 
     glEnableVertexAttribArray(0);
+    // glEnableVertexAttribArray(1);
+
     /**
      * in a vertex we can have many attributes
      * stride is the bytes between each vertex or say size of each vertex
@@ -112,42 +213,33 @@ int main(void)
      * so pointer for position is 0 because we first write postion then color, pointer for color is 8
      * as position takes 8 bytes (0-7)
      */
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0); // position attribute
+    // glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (const void *)(2 * sizeof(float))); // texture co-ordinate
 
-    const char *vertex_shader_source = R"(
-        #version 330 core
-        layout(location = 0) in vec4 pos;
-        
-        void main(){
-            gl_Position = pos;
-        }
-    )";
+    unsigned int ibo;
+    glGenBuffers(1, &ibo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STREAM_DRAW);
 
-    const char *fragment_shader_source = R"(
-        #version 330 core
-        out vec4 color;
-        void main(){
-            color = vec4(1.0,0,0,1.0);
-        }
-    )";
+    auto shaders = ParseShader("res/shaders/basic.shader");
 
-    unsigned int shader_program = CreateShaderProgram(vertex_shader_source, fragment_shader_source);
-
+    unsigned int shader_program = CreateShaderProgram(shaders.first, shaders.second);
     glUseProgram(shader_program);
 
     while (!glfwWindowShouldClose(window))
     {
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glDrawArrays(GL_TRIANGLES, 0, 3); // our shader will be executed on this draw call
+        // glDrawArrays(GL_TRIANGLES, 0, 3); // our shader will be executed on this draw call
         // if you don't do this call no shader will be called
         // if we dont write glUseProgram(our_program), it will use default one provided by GPU.
-
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
         glfwSwapBuffers(window);
 
         glfwPollEvents();
     }
 
+    glDeleteProgram(shader_program);
     glfwTerminate();
     return 0;
 }

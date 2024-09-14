@@ -40,6 +40,8 @@ ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m64 -g
 ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -g -std=c++17
 ALL_LDFLAGS += $(LDFLAGS) -Llib -L/usr/lib64 -m64
 define POSTBUILDCMDS
+	@echo Running postbuild commands
+	cp -rf res bin/Debug
 endef
 
 else ifeq ($(config),release)
@@ -52,7 +54,7 @@ ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -O2 -std=c++17
 ALL_LDFLAGS += $(LDFLAGS) -Llib -L/usr/lib64 -m64 -s
 define POSTBUILDCMDS
 	@echo Running postbuild commands
-	cp -rf assets bin/Release/assets
+	cp -rf res bin/Release
 endef
 
 endif

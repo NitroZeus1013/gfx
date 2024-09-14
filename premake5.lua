@@ -25,12 +25,13 @@ project "MyGLFWProject"
     filter "configurations:Debug"
         defines { "DEBUG" }
         symbols "On"
-
+        
     filter "configurations:Release"
         defines { "NDEBUG" }
         optimize "On"
 
     -- Copy assets to output directory
+    filter {}
     postbuildcommands {
-        "{COPY} assets %{cfg.buildtarget.directory}/assets"
+        "{COPY} res %{cfg.buildtarget.directory}"
     }
